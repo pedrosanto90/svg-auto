@@ -69,12 +69,18 @@ func run() error {
 		return err
 	}
 
+	symbols, paths, err := processZip(zipPath)
+	if err != nil {
+		return err
+	}
+
 	finalZip := filepath.Join(outputDir, filepath.Base(zipPath))
 	if err := os.Rename(zipPath, finalZip); err != nil {
 		return fmt.Errorf("failed to move the zip to %s: %w", finalZip, err)
 	}
 
 	abs, _ := filepath.Abs(finalZip)
+	fmt.Printf("Extracted %d symbols and %d paths.\n", len(symbols), len(paths))
 	fmt.Printf("Done. Package downloaded to %s\n", abs)
 	return nil
 }

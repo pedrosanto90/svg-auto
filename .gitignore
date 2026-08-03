@@ -33,6 +33,9 @@ go.work.sum
 # Generated output
 /output/
 
+# SVG source files
+*.svg
+
 # Editor/IDE
 # .idea/
 # .vscode/
