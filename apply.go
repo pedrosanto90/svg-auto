@@ -63,6 +63,7 @@ func applyIcons(p *project, cfg *Config, icons []Icon) error {
 		}
 	}
 
+	var backups []string
 	for i := range cfg.Files {
 		rule := &cfg.Files[i]
 
@@ -90,10 +91,17 @@ func applyIcons(p *project, cfg *Config, icons []Icon) error {
 		if err := p.backup(rule.Name); err != nil {
 			return err
 		}
+		backups = append(backups, rule.Name+".orig")
 		if err := p.writeFile(rule.Name, updated); err != nil {
 			return err
 		}
 		fmt.Printf("Applied %d icon(s) to %s.\n", applied, rule.Name)
+	}
+
+	for _, b := range backups {
+		if err := p.removeFile(b); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -92,6 +92,20 @@ func (p *project) backup(rel string) error {
 	return nil
 }
 
+func (p *project) removeFile(rel string) error {
+	target := p.target(rel)
+	if p.remote() {
+		if _, err := runSSH(p.host, "rm -f "+shq(target), nil); err != nil {
+			return fmt.Errorf("failed to remove remote file %s: %w", target, err)
+		}
+		return nil
+	}
+	if err := os.Remove(target); err != nil {
+		return fmt.Errorf("failed to remove %s: %w", target, err)
+	}
+	return nil
+}
+
 func shq(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

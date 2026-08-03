@@ -184,6 +184,7 @@ Each file has a `name` (relative to `projectPath`) and a `mode`:
 ### Behavior
 
 - Each edited file is backed up next to itself as `<file>.orig` before any change; a backup is only made when a change is actually applied.
+- After a successful run the backups are removed, so no `<file>.orig` files are left in the project repository. If the run fails partway through, the backups of the files already edited are kept so you can recover.
 - Files with no new icons are left untouched.
 
 

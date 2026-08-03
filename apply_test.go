@@ -241,11 +241,11 @@ func TestApplyIconsLocalProject(t *testing.T) {
 	if !strings.Contains(string(cssData), ".ee-icon-search") {
 		t.Errorf("css not updated: %s", cssData)
 	}
-	if _, err := os.Stat(svg + ".orig"); err != nil {
-		t.Errorf("backup not created: %v", err)
+	if _, err := os.Stat(svg + ".orig"); !os.IsNotExist(err) {
+		t.Errorf("backup should be removed after success: %v", err)
 	}
-	if _, err := os.Stat(jsonFile + ".orig"); err != nil {
-		t.Errorf("json backup not created: %v", err)
+	if _, err := os.Stat(jsonFile + ".orig"); !os.IsNotExist(err) {
+		t.Errorf("json backup should be removed after success: %v", err)
 	}
 
 	if err := applyIcons(newProject(base), cfg, testIcons()); err != nil {
@@ -254,5 +254,38 @@ func TestApplyIconsLocalProject(t *testing.T) {
 	svgData, _ = os.ReadFile(svg)
 	if strings.Count(string(svgData), `id="ee-icon-house-solid"`) != 1 {
 		t.Errorf("rerun duplicated icons: %s", svgData)
+	}
+	if _, err := os.Stat(svg + ".orig"); !os.IsNotExist(err) {
+		t.Errorf("backup should not exist after rerun: %v", err)
+	}
+}
+
+func TestApplyIconsKeepsBackupOnError(t *testing.T) {
+	base := t.TempDir()
+	svg := filepath.Join(base, "sprite.svg")
+	if err := os.WriteFile(svg, []byte("<svg>\n<defs>\n</defs>\n</svg>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	css := filepath.Join(base, "style.css")
+	if err := os.WriteFile(css, []byte(".ee-icon {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		ProjectPath: base,
+		IconPrefix:  "ee-icon-",
+		Files: []FileRule{
+			{Name: "sprite.svg", Mode: "text", Marker: "</defs>", Position: "before", Template: `<symbol id="{{.Prefix}}{{.Name}}">{{.Body}}</symbol>`},
+			{Name: "style.css", Mode: "text", Marker: "zzz-missing", Position: "before", Template: `{{.Name}}`},
+		},
+	}
+	if err := applyIcons(newProject(base), cfg, testIcons()); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if _, err := os.Stat(svg + ".orig"); err != nil {
+		t.Errorf("backup of the first file should remain after error: %v", err)
+	}
+	if _, err := os.Stat(css + ".orig"); err == nil {
+		t.Errorf("no backup expected for the failing file: %v", err)
 	}
 }
