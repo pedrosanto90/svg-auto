@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -192,6 +193,106 @@ func TestApplyIcoMoonInvalidJSON(t *testing.T) {
 func TestApplyIcoMoonNoIconSets(t *testing.T) {
 	if _, _, err := applyIcoMoon([]byte(`{"metadata": {}}`), testIcons()); err == nil {
 		t.Fatal("expected error for missing iconSets, got nil")
+	}
+}
+
+func TestApplyIcoMoonPreservesFormatting(t *testing.T) {
+	content := []byte(`{
+  "metadata": {
+    "name": "EasyEdge",
+    "lastOpened": 0,
+    "created": 1637334254503
+  },
+  "iconSets": [
+    {
+      "selection": [
+        {
+          "order": 37,
+          "id": 33,
+          "name": "field-bound-tags-folder",
+          "prevSize": 32
+        }
+      ],
+      "id": 0,
+      "metadata": { "name": "EasyEdge", "importSize": { "width": 49, "height": 43 } },
+      "height": 1024,
+      "prevSize": 32,
+      "icons": [
+        {
+          "id": 33,
+          "paths": ["M1024 800c"],
+          "attrs": [{}],
+          "width": 1012,
+          "isMulticolor": false,
+          "isMulticolor2": false,
+          "grid": 32,
+          "tags": ["field-bound-tags-folder"]
+        }
+      ]
+    }
+  ],
+  "uid": -1,
+  "preferences": { "fontPref": { "prefix": "ee-icon-" } }
+}
+`)
+
+	out, n, err := applyIcoMoon(content, testIcons())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2 applied, got %d", n)
+	}
+
+	selOpen, selClose, err := arrayBounds(content, "selection")
+	if err != nil {
+		t.Fatal(err)
+	}
+	icOpen, icClose, err := arrayBounds(content, "icons")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(out[:selOpen], content[:selOpen]) {
+		t.Errorf("content before selection changed")
+	}
+	if !strings.HasSuffix(string(out), string(content[icClose+1:])) {
+		t.Errorf("content after icons changed")
+	}
+	if middle := content[selClose+1 : icOpen]; !strings.Contains(string(out), string(middle)) {
+		t.Errorf("content between arrays changed")
+	}
+
+	origSel := `        {
+          "order": 37,
+          "id": 33,
+          "name": "field-bound-tags-folder",
+          "prevSize": 32
+        }`
+	if !strings.Contains(string(out), origSel) {
+		t.Errorf("original selection entry not preserved verbatim:\n%s", out)
+	}
+	if strings.Count(string(out), `"order": 37`) != 1 {
+		t.Errorf("original selection entry duplicated:\n%s", out)
+	}
+	if !strings.Contains(string(out), `          "id": 33,`) {
+		t.Errorf("original icon entry not preserved verbatim:\n%s", out)
+	}
+
+	var doc struct {
+		IconSets []struct {
+			Selection []icoSelection `json:"selection"`
+			Icons     []icoIcon      `json:"icons"`
+		} `json:"iconSets"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("output is not valid json: %v", err)
+	}
+	if doc.IconSets[0].Selection[0].ID != 34 {
+		t.Errorf("expected new selection first, got %+v", doc.IconSets[0].Selection[0])
+	}
+	if doc.IconSets[0].Icons[0].ID != 34 {
+		t.Errorf("expected new icon first, got %+v", doc.IconSets[0].Icons[0])
 	}
 }
 

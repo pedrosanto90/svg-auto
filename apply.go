@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -259,12 +260,158 @@ func applyIcoMoon(content []byte, icons []Icon) ([]byte, int, error) {
 		return content, 0, nil
 	}
 
-	set.Selection = append(newSel, set.Selection...)
-	set.Icons = append(newIcons, set.Icons...)
-
-	out, err := json.MarshalIndent(&doc, "", "  ")
+	out, err := insertArrayElems(content, "selection", newSel)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to serialize JSON: %w", err)
+		return nil, 0, err
 	}
-	return append(out, '\n'), len(newIcons), nil
+	out, err = insertArrayElems(out, "icons", newIcons)
+	if err != nil {
+		return nil, 0, err
+	}
+	return out, len(newIcons), nil
+}
+
+func insertArrayElems[T any](content []byte, key string, elems []T) ([]byte, error) {
+	if len(elems) == 0 {
+		return content, nil
+	}
+	open, close, err := arrayBounds(content, key)
+	if err != nil {
+		return nil, err
+	}
+
+	var rendered []string
+	indent := arrayElemIndent(content, open)
+	for _, e := range elems {
+		r, err := renderElem(e, indent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to render %s entries: %w", key, err)
+		}
+		rendered = append(rendered, r)
+	}
+
+	if open+1 == close {
+		block := "[\n" + strings.Join(rendered, ",\n") + "\n" + indent + "]"
+		out := make([]byte, 0, len(content)+len(block))
+		out = append(out, content[:open]...)
+		out = append(out, block...)
+		out = append(out, content[close+1:]...)
+		return out, nil
+	}
+
+	inserted := "\n" + strings.Join(rendered, ",\n") + ","
+	out := make([]byte, 0, len(content)+len(inserted))
+	out = append(out, content[:open+1]...)
+	out = append(out, inserted...)
+	out = append(out, content[open+1:]...)
+	return out, nil
+}
+
+func arrayBounds(content []byte, key string) (int, int, error) {
+	loc := regexp.MustCompile(`"` + key + `"\s*:`).FindIndex(content)
+	if loc == nil {
+		return 0, 0, fmt.Errorf("key %q not found", key)
+	}
+	i := loc[1]
+	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
+		i++
+	}
+	if i >= len(content) || content[i] != '[' {
+		return 0, 0, fmt.Errorf("key %q is not an array", key)
+	}
+	end, err := matchArrayEnd(content, i)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to find the end of %q array: %w", key, err)
+	}
+	return i, end, nil
+}
+
+func matchArrayEnd(content []byte, start int) (int, error) {
+	depth := 0
+	inStr := false
+	escaped := false
+	for i := start; i < len(content); i++ {
+		c := content[i]
+		if inStr {
+			if escaped {
+				escaped = false
+			} else if c == '\\' {
+				escaped = true
+			} else if c == '"' {
+				inStr = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				return i, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("unterminated array")
+}
+
+func arrayElemIndent(content []byte, open int) string {
+	i := open + 1
+	for i < len(content) {
+		if c := content[i]; c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			i++
+			continue
+		}
+		break
+	}
+	if i >= len(content) || content[i] == ']' {
+		return whitespacePrefix(content[lineStart(content, open):open]) + "  "
+	}
+	ind := content[lineStart(content, i):i]
+	if !allWhitespace(ind) {
+		return "  "
+	}
+	return string(ind)
+}
+
+func lineStart(b []byte, idx int) int {
+	if idx > len(b) {
+		idx = len(b)
+	}
+	for idx > 0 && b[idx-1] != '\n' {
+		idx--
+	}
+	return idx
+}
+
+func whitespacePrefix(b []byte) string {
+	for i, c := range b {
+		if c != ' ' && c != '\t' {
+			return string(b[:i])
+		}
+	}
+	return string(b)
+}
+
+func allWhitespace(b []byte) bool {
+	for _, c := range b {
+		if c != ' ' && c != '\t' {
+			return false
+		}
+	}
+	return true
+}
+
+func renderElem(v any, indent string) (string, error) {
+	raw, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(raw), "\n")
+	for i := range lines {
+		lines[i] = indent + lines[i]
+	}
+	return strings.Join(lines, "\n"), nil
 }
