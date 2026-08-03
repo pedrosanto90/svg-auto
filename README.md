@@ -1,10 +1,10 @@
 # svg-auto
 
-Automação do [IcoMoon](https://icomoon.io) para importar ficheiros SVG e descarregar o pacote gerado, usando [chromedp](https://github.com/chromedp/chromedp).
+Automation for [IcoMoon](https://icomoon.io) to import SVG files and download the generated package, using [chromedp](https://github.com/chromedp/chromedp).
 
-## Browsers suportados
+## Supported browsers
 
-Funciona com qualquer browser baseado em Chromium. A deteção automática procura, por ordem:
+Works with any Chromium-based browser. Automatic detection looks for, in order:
 
 - `brave-browser`, `brave-browser-stable`
 - `chromium`, `chromium-browser`
@@ -12,27 +12,27 @@ Funciona com qualquer browser baseado em Chromium. A deteção automática procu
 - `microsoft-edge`
 - `vivaldi`, `opera`, `chrome`
 
-## Como correr
+## How to run
 
 ```sh
 go run . icon1.svg icon2.svg icon3.svg
 ```
 
-O script importa os ficheiros SVG para o IcoMoon e descarrega o pacote gerado (ficheiro `.zip`, com o nome original do IcoMoon) para `./output/`. O pacote contém as pastas `SVG/`, `PNG/`, `selection.json` e outros ficheiros gerados.
+The script imports the SVG files into IcoMoon and downloads the generated package (a `.zip` file, with the original IcoMoon name) to `./output/`. The package contains the `SVG/` and `PNG/` folders, `selection.json`, and other generated files.
 
-Para usar um browser específico (caminho ou nome do executável):
+To use a specific browser (path or executable name):
 
 ```sh
 SVG_AUTO_BROWSER=brave-browser go run . icon.svg
 ```
 
-Para ver a ajuda:
+To view the help:
 
 ```sh
 go run . -h
 ```
 
-## Requisitos
+## Requirements
 
 - Go 1.26+
-- Um browser Chromium-based instalado (ou definido via `SVG_AUTO_BROWSER`)
+- A Chromium-based browser installed (or set via `SVG_AUTO_BROWSER`)
