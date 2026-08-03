@@ -23,6 +23,11 @@ const (
 	downloadTimeout = 60 * time.Second
 )
 
+const (
+	fileInputSelector    = "input[type=file]"
+	selectedIconSelector = "#set0 [class~='mi-selected']"
+)
+
 func evalJS(ctx context.Context, code string, out any) error {
 	return chromedp.Run(ctx, chromedp.Evaluate(code, out))
 }
@@ -51,7 +56,7 @@ func importIcons(ctx context.Context, files []string) error {
 		return err
 	}
 
-	ready := `document.querySelector('#set0') !== null || document.querySelector('#file') !== null`
+	ready := `document.querySelector('#set0') !== null || document.querySelector('input[type=file]') !== null`
 	if err := waitForJS(ctx, ready, settleTimeout, "the IcoMoon app did not finish loading"); err != nil {
 		return err
 	}
@@ -67,14 +72,14 @@ func importIcons(ctx context.Context, files []string) error {
 		}
 	}
 
-	if err := waitForJS(ctx, `document.querySelector('#file input[type=file]') !== null`, importTimeout, "the import area did not appear"); err != nil {
+	if err := waitForJS(ctx, `(() => { const input = document.querySelector('input[type=file]'); return !!input && !input.disabled; })()`, importTimeout, "the import area did not appear"); err != nil {
 		return err
 	}
-	if err := chromedp.Run(ctx, chromedp.SetUploadFiles("#file input[type=file]", files)); err != nil {
+	if err := chromedp.Run(ctx, chromedp.SetUploadFiles(fileInputSelector, files)); err != nil {
 		return fmt.Errorf("failed to upload files to IcoMoon: %w", err)
 	}
 
-	cond := fmt.Sprintf(`(() => { const s = document.querySelector('#set0'); return !!s && s.querySelectorAll('.miBox').length >= %d; })()`, len(files))
+	cond := fmt.Sprintf(`(() => { const s = document.querySelector('#set0'); return !!s && s.querySelectorAll("[class~='miBox']").length >= %d; })()`, len(files))
 	if err := waitForJS(ctx, cond, importTimeout, fmt.Sprintf("the %d icons were not imported", len(files))); err != nil {
 		return err
 	}
@@ -87,7 +92,10 @@ func importIcons(ctx context.Context, files []string) error {
 
 func dismissWelcome(ctx context.Context) error {
 	code := `(() => {
-		const d = Array.from(document.querySelectorAll('.overlay button, .modal button')).find(b => (b.textContent||'').includes('Dismiss'));
+		const visible = e => e && e.offsetParent !== null && !e.disabled;
+		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
+		const d = Array.from(document.querySelectorAll('[role=dialog] button, .overlay button, .modal button'))
+			.find(b => visible(b) && label(b).includes('dismiss'));
 		if (d) d.click();
 		return true;
 	})()`
@@ -96,18 +104,21 @@ func dismissWelcome(ctx context.Context) error {
 
 func clickSetMenu(ctx context.Context) error {
 	code := `(() => {
-		const m = document.querySelector('.menuList2');
-		if (m && !m.classList.contains('hidden')) return true;
-		const bs = Array.from(document.querySelectorAll('button')).filter(b => (b.textContent||'').trim() === 'Menu');
-		if (!bs.length) return false;
-		bs[bs.length-1].click();
+		const visible = e => e && e.offsetParent !== null && !e.disabled;
+		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
+		const m = Array.from(document.querySelectorAll('[role=menu], .menuList2')).find(visible);
+		if (m) return true;
+		const bs = Array.from(document.querySelectorAll('button, [role=button]'))
+			.filter(b => visible(b) && label(b) === 'menu');
+		if (bs.length !== 1) return false;
+		bs[0].click();
 		return true;
 	})()`
 	return waitForJS(ctx, code, selectTimeout, "set menu button not found")
 }
 
 func clickSetMenuItem(ctx context.Context, text string) error {
-	ready := fmt.Sprintf(`Array.from(document.querySelectorAll('.menuList2 li')).some(li => (li.textContent||'').includes(%q))`, text)
+	ready := fmt.Sprintf(`Array.from(document.querySelectorAll('[role=menu] li, .menuList2 li')).some(li => (li.textContent||'').includes(%q))`, text)
 	if err := waitForJS(ctx, ready, selectTimeout, fmt.Sprintf("menu item %q unavailable", text)); err != nil {
 		return err
 	}
@@ -119,9 +130,12 @@ func clickSetMenuItem(ctx context.Context, text string) error {
 	for time.Now().Before(deadline) {
 		code := fmt.Sprintf(`(() => {
 			const t = %q;
-			const li = Array.from(document.querySelectorAll('.menuList2 li')).find(li => li.offsetParent !== null && (li.textContent||'').includes(t));
+			const visible = e => e && e.offsetParent !== null && !e.disabled;
+			const li = Array.from(document.querySelectorAll('[role=menu] li, .menuList2 li'))
+				.find(li => visible(li) && (li.textContent||'').includes(t));
 			if (!li) return false;
-			const b = li.querySelector('button');
+			const b = li.querySelector('button, [role=button]');
+			if (b && !visible(b)) return false;
 			if (b) b.click(); else li.click();
 			return true;
 		})()`, text)
@@ -142,9 +156,9 @@ func clickSetMenuItem(ctx context.Context, text string) error {
 }
 
 func selectAllIcons(ctx context.Context, n int) error {
-	cond := fmt.Sprintf(`document.querySelectorAll('#set0 .miBox.mi-selected').length === %d`, n)
+	cond := fmt.Sprintf(`document.querySelectorAll("%s").length === %d`, selectedIconSelector, n)
 	var selected int
-	_ = evalJS(ctx, `document.querySelectorAll('#set0 .miBox.mi-selected').length`, &selected)
+	_ = evalJS(ctx, fmt.Sprintf(`document.querySelectorAll("%s").length`, selectedIconSelector), &selected)
 	if selected == n {
 		return nil
 	}
@@ -162,7 +176,12 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		return "", fmt.Errorf("failed to open the export page: %w", err)
 	}
 
-	dlBtn := `Array.from(document.querySelectorAll('button')).some(b => (b.className||'').includes('btn4') && (b.textContent||'').includes('Download'))`
+	dlBtn := `(() => {
+		const visible = e => e && e.offsetParent !== null && !e.disabled;
+		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
+		return Array.from(document.querySelectorAll('button, [role=button]'))
+			.some(b => visible(b) && label(b).includes('download'));
+	})()`
 	if err := waitForJS(ctx, dlBtn, downloadTimeout, "download button not found"); err != nil {
 		return "", err
 	}
@@ -182,7 +201,11 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 
 	var clicked bool
 	code := `(() => {
-		const b = Array.from(document.querySelectorAll('button')).find(b => (b.className||'').includes('btn4') && (b.textContent||'').includes('Download'));
+		const visible = e => e && e.offsetParent !== null && !e.disabled;
+		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
+		const bs = Array.from(document.querySelectorAll('button, [role=button]'))
+			.filter(b => visible(b) && label(b).includes('download'));
+		const b = bs.length === 1 ? bs[0] : null;
 		if (!b) return false;
 		b.click();
 		return true;
