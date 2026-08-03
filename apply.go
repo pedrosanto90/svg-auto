@@ -133,6 +133,9 @@ func applyText(rule *FileRule, prefix string, content []byte, icons []Icon) ([]b
 		if len(content) > 0 && content[len(content)-1] != '\n' {
 			b.WriteByte('\n')
 		}
+		if rule.Separator {
+			b.WriteByte('\n')
+		}
 		b.WriteString(inserted)
 		b.WriteByte('\n')
 	case "replace":
@@ -141,6 +144,9 @@ func applyText(rule *FileRule, prefix string, content []byte, icons []Icon) ([]b
 			return nil, 0, fmt.Errorf("marker %q not found", rule.Marker)
 		}
 		b.Write(content[:idx])
+		if rule.Separator {
+			b.WriteByte('\n')
+		}
 		b.WriteString(inserted)
 		b.Write(content[idx+len(marker):])
 	case "before":
@@ -149,6 +155,9 @@ func applyText(rule *FileRule, prefix string, content []byte, icons []Icon) ([]b
 			return nil, 0, fmt.Errorf("marker %q not found", rule.Marker)
 		}
 		b.Write(content[:idx])
+		if rule.Separator {
+			b.WriteByte('\n')
+		}
 		b.WriteString(inserted)
 		b.WriteByte('\n')
 		b.Write(content[idx:])
@@ -160,6 +169,9 @@ func applyText(rule *FileRule, prefix string, content []byte, icons []Icon) ([]b
 		idx += len(marker)
 		b.Write(content[:idx])
 		b.WriteByte('\n')
+		if rule.Separator {
+			b.WriteByte('\n')
+		}
 		b.WriteString(inserted)
 		b.Write(content[idx:])
 	default:

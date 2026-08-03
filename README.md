@@ -148,6 +148,7 @@ If the config is missing, the tool tells you exactly how to create it.
       "name": "assets/style.css",
       "mode": "text",
       "position": "end",
+      "separator": true,
       "template": "\n.{{.Prefix}}{{.Name}} {\n  width: 1.75em;\n  height: 1.75em;\n}"
     }
   ]
@@ -167,6 +168,7 @@ Each file has a `name` (relative to `projectPath`) and a `mode`:
   - `end` — append to the end of the file.
   - `replace`, `before`, `after` — require a `marker`; the marker line is replaced, or the rendered block is inserted before/after the first occurrence.
   - An icon already present in the file is skipped, so re-running is safe.
+- `separator` (optional, `text` mode only) — inserts a blank line between the existing content and the first new entry. Use it for files such as CSS, where each rule should be separated by a blank line.
 - `icomoon` — edits an IcoMoon `selection.json` (project JSON) semantically: appends the new icons to `iconSets[0]`, with ids/orders continuing the existing sequence. Only the new entries are inserted; the rest of the document is left byte-for-byte untouched. Icons already present are skipped.
 
 ### Template placeholders

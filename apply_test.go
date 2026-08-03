@@ -104,6 +104,32 @@ func TestApplyTextIdempotentExisting(t *testing.T) {
 	}
 }
 
+func TestApplyTextSeparator(t *testing.T) {
+	rule := &FileRule{Mode: "text", Position: "end", Separator: true, Template: `.{{.Prefix}}{{.Name}} { width: 1.75em; }`}
+	out, n, err := applyText(rule, "ee-icon-", []byte(".ee-icon {}\n"), testIcons())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2 applied, got %d", n)
+	}
+	s := string(out)
+	if !strings.Contains(s, ".ee-icon {}\n\n.ee-icon-house-solid { width: 1.75em; }") {
+		t.Errorf("missing blank line between existing and new entry:\n%s", s)
+	}
+
+	out2, n2, err := applyText(rule, "ee-icon-", out, testIcons())
+	if err != nil {
+		t.Fatalf("unexpected error on rerun: %v", err)
+	}
+	if n2 != 0 {
+		t.Errorf("expected idempotent rerun (0 applied), got %d", n2)
+	}
+	if string(out2) != string(out) {
+		t.Errorf("rerun changed content")
+	}
+}
+
 func TestApplyIcoMoon(t *testing.T) {
 	content := `{
   "metadata": { "name": "EasyEdge", "created": 1637334254503 },

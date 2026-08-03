@@ -11,11 +11,12 @@ import (
 const defaultConfigName = "config.json"
 
 type FileRule struct {
-	Name     string `json:"name"`
-	Mode     string `json:"mode"`
-	Marker   string `json:"marker"`
-	Position string `json:"position"`
-	Template string `json:"template"`
+	Name      string `json:"name"`
+	Mode      string `json:"mode"`
+	Marker    string `json:"marker"`
+	Position  string `json:"position"`
+	Template  string `json:"template"`
+	Separator bool   `json:"separator"`
 }
 
 type Config struct {
