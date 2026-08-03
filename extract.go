@@ -7,7 +7,15 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
+
+type Icon struct {
+	Name    string
+	ViewBox string
+	Body    string
+	Paths   []string
+}
 
 func readZipEntry(zipPath, name string) ([]byte, error) {
 	zr, err := zip.OpenReader(zipPath)
@@ -29,16 +37,43 @@ func readZipEntry(zipPath, name string) ([]byte, error) {
 	return nil, fmt.Errorf("file %s not found in zip %s", name, zipPath)
 }
 
-func extractSymbols(svg []byte) ([]string, error) {
-	re := regexp.MustCompile(`(?s)<symbol\b[^>]*>.*?</symbol>`)
-	symbols := re.FindAllString(string(svg), -1)
-	if len(symbols) == 0 {
+var (
+	symbolRe = regexp.MustCompile(`(?s)<symbol\b[^>]*>.*?</symbol>`)
+	idRe     = regexp.MustCompile(`\bid="([^"]*)"`)
+	viewBoxRe = regexp.MustCompile(`\bviewBox="([^"]*)"`)
+)
+
+func extractSymbols(svg []byte) ([]Icon, error) {
+	matches := symbolRe.FindAllString(string(svg), -1)
+	if len(matches) == 0 {
 		return nil, fmt.Errorf("no symbols found in symbol-defs.svg")
 	}
-	return symbols, nil
+
+	icons := make([]Icon, 0, len(matches))
+	for _, m := range matches {
+		open := strings.Index(m, ">")
+		if open < 0 {
+			continue
+		}
+		head := m[:open]
+		body := strings.TrimSpace(m[open+1 : len(m)-len("</symbol>")])
+
+		ic := Icon{Body: body}
+		if sm := idRe.FindStringSubmatch(head); sm != nil {
+			ic.Name = strings.TrimPrefix(sm[1], "icon-")
+		}
+		if sm := viewBoxRe.FindStringSubmatch(head); sm != nil {
+			ic.ViewBox = sm[1]
+		}
+		icons = append(icons, ic)
+	}
+	if len(icons) == 0 {
+		return nil, fmt.Errorf("no valid symbols found in symbol-defs.svg")
+	}
+	return icons, nil
 }
 
-func extractPaths(data []byte) ([]string, error) {
+func extractPaths(data []byte) ([][]string, error) {
 	var doc struct {
 		Icons []struct {
 			Icon struct {
@@ -50,9 +85,12 @@ func extractPaths(data []byte) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse selection.json: %w", err)
 	}
 
-	var paths []string
+	paths := make([][]string, 0, len(doc.Icons))
 	for _, ic := range doc.Icons {
-		paths = append(paths, ic.Icon.Paths...)
+		if len(ic.Icon.Paths) == 0 {
+			return nil, fmt.Errorf("no paths found in selection.json")
+		}
+		paths = append(paths, ic.Icon.Paths)
 	}
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("no paths found in selection.json")
@@ -60,23 +98,29 @@ func extractPaths(data []byte) ([]string, error) {
 	return paths, nil
 }
 
-func processZip(zipPath string) (symbols []string, paths []string, err error) {
+func processZip(zipPath string) ([]Icon, error) {
 	svg, err := readZipEntry(zipPath, "symbol-defs.svg")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	sel, err := readZipEntry(zipPath, "selection.json")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	symbols, err = extractSymbols(svg)
+	symbols, err := extractSymbols(svg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	paths, err = extractPaths(sel)
+	paths, err := extractPaths(sel)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return symbols, paths, nil
+
+	for i := range symbols {
+		if i < len(paths) {
+			symbols[i].Paths = paths[i]
+		}
+	}
+	return symbols, nil
 }

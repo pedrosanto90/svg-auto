@@ -114,3 +114,79 @@ To view the help:
 svg-auto -h
 ```
 
+## Configuration
+
+The tool applies the downloaded icons to a project (local or remote via SSH). This requires a configuration file listing the project and the files to edit.
+
+The config lives at `~/.config/svg-auto/config.json` (path follows [XDG](https://specifications.freedesktop.org/basedir-spec/), use the `SVG_AUTO_CONFIG` environment variable to override it). Create it with:
+
+```sh
+mkdir -p ~/.config/svg-auto && nano ~/.config/svg-auto/config.json
+```
+
+If the config is missing, the tool tells you exactly how to create it.
+
+### Example
+
+```json
+{
+  "projectPath": "user@server:/srv/app",
+  "iconPrefix": "ee-icon-",
+  "files": [
+    {
+      "name": "assets/sprite.svg",
+      "mode": "text",
+      "marker": "</defs>",
+      "position": "before",
+      "template": "<symbol id=\"{{.Prefix}}{{.Name}}\" viewBox=\"{{.ViewBox}}\">{{.Body}}</symbol>"
+    },
+    {
+      "name": "selection.json",
+      "mode": "icomoon"
+    },
+    {
+      "name": "assets/style.css",
+      "mode": "text",
+      "position": "end",
+      "separator": true,
+      "template": "\n.{{.Prefix}}{{.Name}} {\n  width: 1.75em;\n  height: 1.75em;\n}"
+    }
+  ]
+}
+```
+
+### Fields
+
+- `projectPath` — path to the project. A local path (`/srv/app`) or a remote one (`user@host:/srv/app`); remote access uses your system's `ssh`. When using `~/...` on the remote host, write it as `host:~/...`.
+- `iconPrefix` — prefix prepended to every icon name (e.g. `ee-icon-`). Defaults to `icon-`. It is the single source for the SVG `id`, the CSS class, and the icon tags.
+
+### Files
+
+Each file has a `name` (relative to `projectPath`) and a `mode`:
+
+- `text` — renders a `template` per icon and inserts the results. Requires a `position`:
+  - `end` — append to the end of the file.
+  - `replace`, `before`, `after` — require a `marker`; the marker line is replaced, or the rendered block is inserted before/after the first occurrence.
+  - An icon already present in the file is skipped, so re-running is safe.
+- `separator` (optional, `text` mode only) — inserts a blank line between the existing content and the first new entry. Use it for files such as CSS, where each rule should be separated by a blank line.
+- `icomoon` — edits an IcoMoon `selection.json` (project JSON) semantically: appends the new icons to `iconSets[0]`, with ids/orders continuing the existing sequence. Only the new entries are inserted; the rest of the document is left byte-for-byte untouched. Icons already present are skipped.
+
+### Template placeholders
+
+| Placeholder     | Description                                    |
+| --------------- | ---------------------------------------------- |
+| `{{.Prefix}}`   | The configured `iconPrefix`                    |
+| `{{.Name}}`     | Icon name (e.g. `house-solid`)                 |
+| `{{.ViewBox}}`  | The icon's `viewBox`                           |
+| `{{.Body}}`     | Inner body of the `<symbol>`                   |
+| `{{.Paths}}`    | Space-joined SVG path `d` values               |
+| `{{.PathsJson}}`| JSON array of the path `d` values              |
+| `{{.TagsJson}}` | JSON array with the icon name as a tag         |
+
+### Behavior
+
+- Each edited file is backed up next to itself as `<file>.orig` before any change; a backup is only made when a change is actually applied.
+- After a successful run the backups are removed, so no `<file>.orig` files are left in the project repository. If the run fails partway through, the backups of the files already edited are kept so you can recover.
+- Files with no new icons are left untouched.
+
+
