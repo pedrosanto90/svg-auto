@@ -109,9 +109,9 @@ func clickSetMenu(ctx context.Context) error {
 		const m = Array.from(document.querySelectorAll('[role=menu], .menuList2')).find(visible);
 		if (m) return true;
 		const bs = Array.from(document.querySelectorAll('button, [role=button]'))
-			.filter(b => visible(b) && label(b) === 'menu');
-		if (bs.length !== 1) return false;
-		bs[0].click();
+			.filter(b => visible(b) && label(b).includes('menu'));
+		if (!bs.length) return false;
+		bs[bs.length-1].click();
 		return true;
 	})()`
 	return waitForJS(ctx, code, selectTimeout, "set menu button not found")
@@ -180,7 +180,7 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		const visible = e => e && e.offsetParent !== null && !e.disabled;
 		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
 		return Array.from(document.querySelectorAll('button, [role=button]'))
-			.some(b => visible(b) && label(b).includes('download'));
+			.some(b => visible(b) && (b.className||'').includes('btn4') && label(b).includes('download'));
 	})()`
 	if err := waitForJS(ctx, dlBtn, downloadTimeout, "download button not found"); err != nil {
 		return "", err
@@ -204,10 +204,9 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		const visible = e => e && e.offsetParent !== null && !e.disabled;
 		const label = e => ((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')).trim().toLowerCase();
 		const bs = Array.from(document.querySelectorAll('button, [role=button]'))
-			.filter(b => visible(b) && label(b).includes('download'));
-		const b = bs.length === 1 ? bs[0] : null;
-		if (!b) return false;
-		b.click();
+			.filter(b => visible(b) && (b.className||'').includes('btn4') && label(b).includes('download'));
+		if (!bs.length) return false;
+		bs[0].click();
 		return true;
 	})()`
 	if err := evalJS(ctx, code, &clicked); err != nil {
