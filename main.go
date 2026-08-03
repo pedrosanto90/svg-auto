@@ -29,7 +29,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Usando browser: %s\n", browserPath)
+	fmt.Printf("Using browser: %s\n", browserPath)
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.ExecPath(browserPath),
@@ -44,25 +44,25 @@ func run() error {
 	defer cancelTimeout()
 
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("falha ao criar %s: %w", outputDir, err)
+		return fmt.Errorf("failed to create %s: %w", outputDir, err)
 	}
 	downloadDir := filepath.Join(outputDir, "download")
 	if err := os.MkdirAll(downloadDir, 0o755); err != nil {
-		return fmt.Errorf("falha ao criar %s: %w", downloadDir, err)
+		return fmt.Errorf("failed to create %s: %w", downloadDir, err)
 	}
 	defer os.RemoveAll(downloadDir)
 
 	if err := chromedp.Run(ctx, chromedp.Navigate(icomoonSelectURL)); err != nil {
-		return fmt.Errorf("falha ao abrir o IcoMoon: %w", err)
+		return fmt.Errorf("failed to open IcoMoon: %w", err)
 	}
 	if err := chromedp.Run(ctx, chromedp.WaitVisible(".w-main", chromedp.ByQuery)); err != nil {
-		return fmt.Errorf("falha ao carregar o IcoMoon: %w", err)
+		return fmt.Errorf("failed to load IcoMoon: %w", err)
 	}
 
 	if err := importIcons(ctx, files); err != nil {
 		return err
 	}
-	fmt.Printf("Importados %d ícones.\n", len(files))
+	fmt.Printf("Imported %d icons.\n", len(files))
 
 	zipPath, err := downloadIcons(ctx, downloadDir)
 	if err != nil {
@@ -71,10 +71,10 @@ func run() error {
 
 	finalZip := filepath.Join(outputDir, filepath.Base(zipPath))
 	if err := os.Rename(zipPath, finalZip); err != nil {
-		return fmt.Errorf("falha ao mover o zip para %s: %w", finalZip, err)
+		return fmt.Errorf("failed to move the zip to %s: %w", finalZip, err)
 	}
 
 	abs, _ := filepath.Abs(finalZip)
-	fmt.Printf("Concluído. Pacote descarregado em %s\n", abs)
+	fmt.Printf("Done. Package downloaded to %s\n", abs)
 	return nil
 }

@@ -28,7 +28,7 @@ func findBrowser() (string, error) {
 	if override := os.Getenv(browserEnvVar); override != "" {
 		path, err := exec.LookPath(override)
 		if err != nil {
-			return "", fmt.Errorf("não foi possível localizar o browser definido em %s: %q (%w)", browserEnvVar, override, err)
+			return "", fmt.Errorf("could not find the browser set in %s: %q (%w)", browserEnvVar, override, err)
 		}
 		return path, nil
 	}
@@ -48,7 +48,7 @@ func findBrowser() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("não foi encontrado nenhum browser suportado. Procurei por: %s. Instale um browser Chromium-based ou defina %s com o caminho do executável",
+	return "", fmt.Errorf("no supported browser was found. Searched for: %s. Install a Chromium-based browser or set %s to the executable path",
 		strings.Join(searched, ", "), browserEnvVar)
 }
 

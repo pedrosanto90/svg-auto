@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-const usage = `Uso: svg-auto <ficheiro1.svg> [ficheiro2.svg ...]
+const usage = `Usage: svg-auto <file1.svg> [file2.svg ...]
 
-Importa ficheiros SVG para o IcoMoon e descarrega os SVGs processados para ./output/svg.
+Imports SVG files into IcoMoon and downloads the generated package (.zip) to ./output/.
 
-Opções:
-  -h, --help    mostra esta ajuda
+Options:
+  -h, --help    show this help
 
-Variáveis de ambiente:
-  SVG_AUTO_BROWSER    caminho ou nome do executável do browser (opcional)`
+Environment variables:
+  SVG_AUTO_BROWSER    path or name of the browser executable (optional)`
 
 func parseArgs() ([]string, error) {
 	args := os.Args[1:]
@@ -38,7 +38,7 @@ func parseArgs() ([]string, error) {
 		}
 		abs, err := filepath.Abs(arg)
 		if err != nil {
-			return nil, fmt.Errorf("falha ao obter caminho absoluto de %q: %w", arg, err)
+			return nil, fmt.Errorf("failed to get the absolute path of %q: %w", arg, err)
 		}
 		files = append(files, abs)
 	}
@@ -49,15 +49,15 @@ func validateSVG(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("ficheiro não encontrado: %q", path)
+			return fmt.Errorf("file not found: %q", path)
 		}
-		return fmt.Errorf("falha ao aceder a %q: %w", path, err)
+		return fmt.Errorf("failed to access %q: %w", path, err)
 	}
 	if info.IsDir() {
-		return fmt.Errorf("esperado um ficheiro, mas %q é uma pasta", path)
+		return fmt.Errorf("expected a file, but %q is a directory", path)
 	}
 	if !strings.EqualFold(filepath.Ext(path), ".svg") {
-		return fmt.Errorf("%q não termina em .svg", path)
+		return fmt.Errorf("%q does not end in .svg", path)
 	}
 	return nil
 }

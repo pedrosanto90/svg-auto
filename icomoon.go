@@ -43,7 +43,7 @@ func waitForJS(ctx context.Context, code string, timeout time.Duration, errMsg s
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
-	return fmt.Errorf("%s (timeout após %s)", errMsg, timeout)
+	return fmt.Errorf("%s (timeout after %s)", errMsg, timeout)
 }
 
 func importIcons(ctx context.Context, files []string) error {
@@ -52,7 +52,7 @@ func importIcons(ctx context.Context, files []string) error {
 	}
 
 	ready := `document.querySelector('#set0') !== null || document.querySelector('#file') !== null`
-	if err := waitForJS(ctx, ready, settleTimeout, "a app do IcoMoon não terminou de carregar"); err != nil {
+	if err := waitForJS(ctx, ready, settleTimeout, "the IcoMoon app did not finish loading"); err != nil {
 		return err
 	}
 
@@ -60,22 +60,22 @@ func importIcons(ctx context.Context, files []string) error {
 	_ = evalJS(ctx, `!!document.querySelector('#set0')`, &hasDefaultSet)
 	if hasDefaultSet {
 		if err := clickSetMenuItem(ctx, "Remove Set"); err != nil {
-			return fmt.Errorf("não foi possível remover o set predefinido do IcoMoon: %w", err)
+			return fmt.Errorf("could not remove the default IcoMoon set: %w", err)
 		}
-		if err := waitForJS(ctx, `!document.querySelector('#set0')`, importTimeout, "o set predefinido não foi removido"); err != nil {
+		if err := waitForJS(ctx, `!document.querySelector('#set0')`, importTimeout, "the default set was not removed"); err != nil {
 			return err
 		}
 	}
 
-	if err := waitForJS(ctx, `document.querySelector('#file input[type=file]') !== null`, importTimeout, "a área de importação não apareceu"); err != nil {
+	if err := waitForJS(ctx, `document.querySelector('#file input[type=file]') !== null`, importTimeout, "the import area did not appear"); err != nil {
 		return err
 	}
 	if err := chromedp.Run(ctx, chromedp.SetUploadFiles("#file input[type=file]", files)); err != nil {
-		return fmt.Errorf("falha ao enviar ficheiros para o IcoMoon: %w", err)
+		return fmt.Errorf("failed to upload files to IcoMoon: %w", err)
 	}
 
 	cond := fmt.Sprintf(`(() => { const s = document.querySelector('#set0'); return !!s && s.querySelectorAll('.miBox').length >= %d; })()`, len(files))
-	if err := waitForJS(ctx, cond, importTimeout, fmt.Sprintf("os %d ícones não foram importados", len(files))); err != nil {
+	if err := waitForJS(ctx, cond, importTimeout, fmt.Sprintf("the %d icons were not imported", len(files))); err != nil {
 		return err
 	}
 
@@ -103,12 +103,12 @@ func clickSetMenu(ctx context.Context) error {
 		bs[bs.length-1].click();
 		return true;
 	})()`
-	return waitForJS(ctx, code, selectTimeout, "botão de menu do set não encontrado")
+	return waitForJS(ctx, code, selectTimeout, "set menu button not found")
 }
 
 func clickSetMenuItem(ctx context.Context, text string) error {
 	ready := fmt.Sprintf(`Array.from(document.querySelectorAll('.menuList2 li')).some(li => (li.textContent||'').includes(%q))`, text)
-	if err := waitForJS(ctx, ready, selectTimeout, fmt.Sprintf("item de menu %q indisponível", text)); err != nil {
+	if err := waitForJS(ctx, ready, selectTimeout, fmt.Sprintf("menu item %q unavailable", text)); err != nil {
 		return err
 	}
 	if err := clickSetMenu(ctx); err != nil {
@@ -138,7 +138,7 @@ func clickSetMenuItem(ctx context.Context, text string) error {
 		case <-time.After(400 * time.Millisecond):
 		}
 	}
-	return fmt.Errorf("item de menu %q não encontrado", text)
+	return fmt.Errorf("menu item %q not found", text)
 }
 
 func selectAllIcons(ctx context.Context, n int) error {
@@ -151,7 +151,7 @@ func selectAllIcons(ctx context.Context, n int) error {
 	if err := clickSetMenuItem(ctx, "Select All"); err != nil {
 		return err
 	}
-	return waitForJS(ctx, cond, selectTimeout, "não foi possível selecionar todos os ícones")
+	return waitForJS(ctx, cond, selectTimeout, "could not select all icons")
 }
 
 func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
@@ -159,11 +159,11 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllowAndName).WithDownloadPath(downloadDir).WithEventsEnabled(true),
 		chromedp.Navigate(icomoonImageURL),
 	); err != nil {
-		return "", fmt.Errorf("falha ao abrir a página de exportação: %w", err)
+		return "", fmt.Errorf("failed to open the export page: %w", err)
 	}
 
 	dlBtn := `Array.from(document.querySelectorAll('button')).some(b => (b.className||'').includes('btn4') && (b.textContent||'').includes('Download'))`
-	if err := waitForJS(ctx, dlBtn, downloadTimeout, "botão de download não encontrado"); err != nil {
+	if err := waitForJS(ctx, dlBtn, downloadTimeout, "download button not found"); err != nil {
 		return "", err
 	}
 
@@ -191,13 +191,13 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		return "", err
 	}
 	if !clicked {
-		return "", fmt.Errorf("não foi possível clicar no botão de download")
+		return "", fmt.Errorf("could not click the download button")
 	}
 
 	var guid string
 	select {
 	case <-ctx.Done():
-		return "", fmt.Errorf("timeout à espera do download: %w", ctx.Err())
+		return "", fmt.Errorf("timeout waiting for the download: %w", ctx.Err())
 	case guid = <-done:
 	}
 
@@ -206,7 +206,7 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 		return "", err
 	}
 	if !isZipFile(zipPath) {
-		return "", fmt.Errorf("o ficheiro descarregado %s não é um zip válido", zipPath)
+		return "", fmt.Errorf("the downloaded file %s is not a valid zip", zipPath)
 	}
 
 	name := suggestedName
@@ -215,7 +215,7 @@ func downloadIcons(ctx context.Context, downloadDir string) (string, error) {
 	}
 	finalPath := filepath.Join(downloadDir, filepath.Base(name))
 	if err := os.Rename(zipPath, finalPath); err != nil {
-		return "", fmt.Errorf("falha ao dar nome ao ficheiro descarregado: %w", err)
+		return "", fmt.Errorf("failed to name the downloaded file: %w", err)
 	}
 	return finalPath, nil
 }
@@ -249,9 +249,9 @@ func waitForFileStable(ctx context.Context, path string, timeout time.Duration) 
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("ficheiro %s não concluiu o download: %w", path, ctx.Err())
+			return fmt.Errorf("file %s did not finish downloading: %w", path, ctx.Err())
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
-	return fmt.Errorf("ficheiro %s não concluiu o download (timeout após %s)", path, timeout)
+	return fmt.Errorf("file %s did not finish downloading (timeout after %s)", path, timeout)
 }
