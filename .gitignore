@@ -27,6 +27,12 @@ go.work.sum
 # env file
 .env
 
+# Local build output
+/svg-auto
+
+# Generated output
+/output/
+
 # Editor/IDE
 # .idea/
 # .vscode/
