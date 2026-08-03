@@ -69,8 +69,17 @@ func run() error {
 		return err
 	}
 
-	symbols, paths, err := processZip(zipPath)
+	icons, err := processZip(zipPath)
 	if err != nil {
+		return err
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	proj := newProject(cfg.ProjectPath)
+	if err := applyIcons(proj, cfg, icons); err != nil {
 		return err
 	}
 
@@ -80,7 +89,7 @@ func run() error {
 	}
 
 	abs, _ := filepath.Abs(finalZip)
-	fmt.Printf("Extracted %d symbols and %d paths.\n", len(symbols), len(paths))
+	fmt.Printf("Extracted %d icons.\n", len(icons))
 	fmt.Printf("Done. Package downloaded to %s\n", abs)
 	return nil
 }

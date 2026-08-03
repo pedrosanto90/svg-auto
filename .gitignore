@@ -36,6 +36,9 @@ go.work.sum
 # SVG source files
 *.svg
 
+# Reference files for analysis
+/filesREF/
+
 # Editor/IDE
 # .idea/
 # .vscode/
