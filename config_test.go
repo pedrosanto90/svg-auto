@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -50,6 +52,23 @@ func TestLoadConfigMissing(t *testing.T) {
 	t.Setenv("SVG_AUTO_CONFIG", filepath.Join(t.TempDir(), "nope.json"))
 	if _, err := loadConfig(); err == nil {
 		t.Fatal("expected error for missing config, got nil")
+	}
+}
+
+func TestConfigCreateHint(t *testing.T) {
+	path := filepath.Join("some", "dir", "config.json")
+	hint := configCreateHint(path)
+	if runtime.GOOS == "windows" {
+		if !strings.Contains(hint, "New-Item") || !strings.Contains(hint, "notepad") {
+			t.Errorf("unexpected windows hint: %s", hint)
+		}
+	} else {
+		if !strings.Contains(hint, "mkdir -p") || !strings.Contains(hint, "nano") {
+			t.Errorf("unexpected unix hint: %s", hint)
+		}
+	}
+	if !strings.Contains(hint, path) {
+		t.Errorf("hint should mention the config path: %s", hint)
 	}
 }
 

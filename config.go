@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -36,6 +37,13 @@ func configPath() (string, error) {
 	return filepath.Join(dir, "svg-auto", defaultConfigName), nil
 }
 
+func configCreateHint(path string) string {
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf(`New-Item -ItemType Directory -Force "%s" ; notepad "%s"`, filepath.Dir(path), path)
+	}
+	return fmt.Sprintf("mkdir -p %s && nano %s", filepath.Dir(path), path)
+}
+
 func loadConfig() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
@@ -44,7 +52,7 @@ func loadConfig() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config not found at %s. Create it with: mkdir -p %s && nano %s", path, filepath.Dir(path), path)
+			return nil, fmt.Errorf("config not found at %s. Create it with: %s", path, configCreateHint(path))
 		}
 		return nil, fmt.Errorf("failed to read config %s: %w", path, err)
 	}

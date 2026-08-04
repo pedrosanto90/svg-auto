@@ -151,6 +151,57 @@ Works with any Chromium-based browser. Automatic detection looks for, in order:
 
 It also checks common install locations on Linux (`/usr/bin`, `/snap/bin`), macOS (`/Applications`), and Windows (`Program Files`). If no browser is found, set `SVG_AUTO_BROWSER` to the executable path.
 
+## Windows
+
+The tool is cross-platform; the only Unix-specific part is the `Makefile`, so on Windows use `go build` / `go install` directly.
+
+### Install
+
+1. Install Go with the Windows MSI installer from [go.dev/dl](https://go.dev/dl/) (it sets up `PATH` automatically).
+2. Install a Chromium-based browser. Microsoft Edge ships with Windows 10/11 and is auto-detected; Chrome and Brave also work.
+3. Install the binary:
+
+   ```sh
+   go install github.com/pedrosanto90/svg-auto@latest
+   ```
+
+   This installs `svg-auto.exe` into `%USERPROFILE%\go\bin`. Make sure that directory is in your `PATH`. Alternatively, clone the repo and run `go build -o svg-auto.exe .`.
+4. Verify with:
+
+   ```sh
+   svg-auto -h
+   ```
+
+### Configuration
+
+On Windows the config lives at `%AppData%\svg-auto\config.json` (for example `C:\Users\<user>\AppData\Roaming\svg-auto\config.json`). Create it from PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:APPDATA\svg-auto"
+notepad "$env:APPDATA\svg-auto\config.json"
+```
+
+For a local `projectPath`, use forward slashes so the backslashes don't need escaping in JSON:
+
+```json
+{ "projectPath": "C:/Users/pedro/code/myapp", "iconPrefix": "ee-icon-", "files": [...] }
+```
+
+### SSH (optional)
+
+For remote projects, enable the OpenSSH Client in *Settings → Apps → Optional features* (included by default on recent Windows 10/11 builds). It uses the same `~/.ssh` keys as on Linux; the remote path is unchanged (`user@host:/srv/app`).
+
+### Environment variables (PowerShell)
+
+```powershell
+$env:SVG_AUTO_BROWSER = "chrome"   # current session
+setx SVG_AUTO_BROWSER chrome       # persistent
+```
+
+### Alternative: WSL
+
+If you prefer, run the tool inside [WSL](https://learn.microsoft.com/en-us/windows/wsl/) — the experience is then identical to Linux (Makefile, `~/.config/svg-auto`, etc.).
+
 ## Configuration
 
 The tool applies the downloaded icons to a project (local or remote via SSH). This requires a configuration file listing the project and the files to edit.
@@ -163,7 +214,7 @@ The config lives at `~/.config/svg-auto/config.json` (path follows [XDG](https:/
 mkdir -p ~/.config/svg-auto && nano ~/.config/svg-auto/config.json
 ```
 
-If the config is missing or invalid, the tool prints an error explaining exactly what to create or fix.
+On Windows it lives at `%AppData%\svg-auto\config.json` (see [Windows](#windows)). If the config is missing or invalid, the tool prints an error explaining exactly what to create or fix.
 
 ### Example
 
